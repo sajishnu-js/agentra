@@ -1,0 +1,61 @@
+# --- Web ---
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+# Required for FastAPI's UploadFile/File(...) form parsing — document and
+# attachment uploads use it; nothing else pulls it in transitively.
+python-multipart==0.0.20
+
+# --- Config ---
+pydantic==2.13.4
+pydantic-settings==2.15.0
+
+# --- Database ---
+sqlalchemy[asyncio]==2.0.52
+asyncpg==0.31.0
+alembic==1.19.1
+pgvector==0.5.0
+
+# --- Cache / queue ---
+redis==8.1.0
+# The queue itself — app/jobs/connection.py, app/telegram_bot.py and the new
+# app/webhooks/router.py all enqueue onto it. Was missing from this file
+# despite being a real, direct dependency of code already in the repo.
+rq==2.11.0
+
+# --- Knowledge base ingestion ---
+# Document parsing. The docx and pdf extras keep this to what we actually
+# read; unstructured[all-docs] pulls in a very large dependency tree.
+unstructured[docx,pdf]==0.25.2
+
+# unstructured's docx/pdf partitioners lazily fetch this spaCy model on first
+# use (app/domains/knowledge_base/parsing.py never calls it directly), via a
+# bespoke downloader that does not use certifi's CA bundle — on a machine
+# where that verification fails, ingestion crashes with a spaCy SSL error
+# that has nothing to do with the actual document. Pinning it as a normal
+# dependency makes pip (which does use certifi) fetch it up front instead.
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# Local embeddings. Pulls torch, which is the bulk of the install size.
+# No external API is involved in embedding.
+sentence-transformers==6.0.0
+
+# --- Channels ---
+# The async rewrite (v20+) is required — app/channels/telegram.py uses
+# `Bot` as an async context manager and awaits send_message.
+python-telegram-bot==22.8
+# WhatsApp Cloud API and the Instagram Messaging API are both plain Graph API
+# REST calls — no official Python SDK for either, so app/channels/whatsapp.py
+# and instagram.py speak to them directly over httpx.
+httpx==0.28.1
+# Outbound email send in app/channels/email.py — async so a slow mail server
+# never blocks the RQ worker's event loop the way smtplib would.
+aiosmtplib==4.0.2
+
+# --- LLM ---
+# app/llm/gemini.py imports this lazily (from google import genai) so that
+# importing the orchestrator or the agents router doesn't require it unless
+# a Gemini call actually happens — but it still has to be installed for that
+# call to work at all. This was missing entirely until the agent-test
+# endpoint made it impossible to miss (every call raised a raw ImportError
+# instead of the intended GeminiNotConfigured/502 path).
+google-genai==2.20.0

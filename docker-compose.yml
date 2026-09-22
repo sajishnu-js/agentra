@@ -1,0 +1,51 @@
+# Local infrastructure only. The API and frontend run natively on the host
+# (uvicorn + vite) so reloads stay fast and there is one less layer to debug.
+#
+#   docker compose up -d      start Postgres + Redis
+#   docker compose ps         check health
+#   docker compose down       stop (data survives in named volumes)
+#   docker compose down -v    stop and wipe data
+#
+# This machine currently has the standalone binary rather than the CLI plugin,
+# so substitute `docker-compose` (hyphen) for `docker compose` — same file,
+# same flags. `make up` in the repo root picks whichever is installed.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: agentra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agentra
+      POSTGRES_PASSWORD: agentra
+      POSTGRES_DB: agentra
+    ports:
+      # 5433 on the host, so a system Postgres on 5432 does not conflict.
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentra -d agentra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentra-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:

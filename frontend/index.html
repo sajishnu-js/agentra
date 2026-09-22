@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" class="dark" data-accent="silver">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <title>Agentra</title>
+    <!-- Paints the root canvas before any stylesheet exists.
+         The script below sets the `dark` class in time, but a class alone
+         colours nothing: in dev, Vite injects index.css from JavaScript, so
+         for one frame there is no stylesheet at all and the browser paints
+         its own white canvas — a hard white flash on every refresh in dark
+         mode. These two rules are inline and render-blocking, so that frame
+         is already the right colour.
+
+         `html.dark` is (0,1,1) and #000 is exactly what every dark accent
+         resolves to (see the black-dominant layer in index.css), so it is
+         correct to leave it winning permanently. Light mode is a stand-in
+         only; index.css overrides it with the accent's real background via a
+         matching-specificity `html:not(.dark)` rule, which wins regardless
+         of which stylesheet the browser happens to apply first. -->
+    <style>
+      html {
+        background-color: #fafafa;
+        color-scheme: light;
+      }
+      html.dark {
+        background-color: #000000;
+        color-scheme: dark;
+      }
+    </style>
+    <!-- Applies a stored theme/accent choice before first paint, so a
+         returning visitor never sees a flash of the "dark + blue" static
+         default before ThemeProvider's effect corrects it after mount. -->
+    <script>
+      (function () {
+        try {
+          var mode = localStorage.getItem('agentra.theme');
+          var accent = localStorage.getItem('agentra.accent');
+          if (mode === 'light' || mode === 'dark') {
+            document.documentElement.classList.toggle('dark', mode === 'dark');
+          }
+          if (accent && ['brown', 'silver', 'blue', 'green', 'nebula', 'ember', 'opal', 'black'].indexOf(accent) !== -1) {
+            document.documentElement.setAttribute('data-accent', accent);
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

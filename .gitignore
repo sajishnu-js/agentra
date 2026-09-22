@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+
+# User-uploaded content (KB documents, avatars, message attachments).
+# These are real business files at runtime — never commit them.
+backend/uploads/
+
+# Local agent/session state
+.claude/
+
+# Logs & runtime artefacts
+*.log
+*.pid

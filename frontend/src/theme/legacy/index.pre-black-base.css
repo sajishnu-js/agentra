@@ -1,0 +1,1827 @@
+/* ============================================================================
+   Agentra design system — seven glossy black-based accent themes (Brown,
+   Silver, Blue, Green, Nebula, Ember, Opal), each with its own light and
+   dark mode, all built around a real WebGL backdrop (see src/scene/) rather
+   than a flat gradient. Nebula, Ember and Opal are each a deliberate
+   three-hue combination rather than one hue with light/dark variants — see
+   theme/accentPalettes.ts for the exact palette reasoning on each.
+   ----------------------------------------------------------------------------
+   Every colour, blur, radius and shadow in the app resolves to a custom
+   property declared here. Components never hardcode a colour, which is what
+   lets the light/dark toggle AND the accent picker each work by flipping one
+   class / attribute on <html> — no component needs to know which is active.
+
+   Layers, in order:
+     1. :root / .dark              the default accent (Brown), light + dark
+     2. html[data-accent="x"] /    the other six accents, light + dark —
+        html.dark[data-accent="x"]  additive blocks, never touch the above
+     3. @theme inline              exposes tokens to Tailwind as utilities
+                                   (bg-background, text-muted-foreground, ...)
+     4. @layer base                element defaults
+     5. @layer components          the .glass-* recipes, .tilt-3d, .enter-btn
+
+   Token naming follows shadcn/ui conventions (--background, --primary,
+   --muted-foreground, --sidebar-*) so components pulled from the shadcn
+   registry with `npx shadcn add <name>` inherit this theme with no edits.
+   The --glass-* and --brand-* names are Agentra additions on top.
+
+   Accent selection: <html data-accent="brown|silver|blue|green|nebula|ember|opal">,
+   written by ThemeProvider (theme/ThemeProvider.tsx) and persisted to
+   localStorage. `html[data-accent="x"]` (specificity 0,1,1) always beats the
+   bare `:root` default (0,1,0) regardless of source order, and
+   `.dark[data-accent="x"]` (0,2,0) beats both plain `.dark` (0,1,0) and the
+   light accent block (0,1,1) — so the six accent blocks below are purely
+   additive and the original Brown :root/.dark pair never needed to change.
+
+   Three.js material colours can't reference CSS custom properties, so the
+   WebGL scene files (src/scene/*.tsx) read the matching hex values from
+   src/theme/accentPalettes.ts instead — same seven accents, kept in sync by
+   hand since there is no way to share one source of truth across a CSS file
+   and TypeScript.
+   ========================================================================= */
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Dark mode is class-driven (<html class="dark">), not OS-driven. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   1. LIGHT MODE
+   Warm cream/tan page, translucent panels, depth from a coloured, multi-stop
+   shadow rather than a flat one — matched to the copper/gold lighting in the
+   WebGL backdrop so panels read as lit by the same scene.
+   ------------------------------------------------------------------------ */
+:root {
+  --radius: 1.25rem;
+
+  /* Page */
+  --background: #f6efe3;
+  --background-deep: #ecdfc9; /* far stop of the page gradient */
+  --foreground: #2a1a0f; /* deep espresso brown-black */
+
+  /* Panels — glass */
+  --card: rgb(255 250 240 / 0.66);
+  --card-foreground: #2a1a0f;
+  --popover: rgb(255 250 240 / 0.92);
+  --popover-foreground: #2a1a0f;
+
+  /* Brand — coffee brown, deepened so white text on it clears AA (~9:1) */
+  --primary: #6b3d1a;
+  --primary-foreground: #ffffff;
+
+  /* Neutral fills */
+  --secondary: rgb(42 26 15 / 0.05);
+  --secondary-foreground: #2a1a0f;
+  --muted: rgb(42 26 15 / 0.045);
+  --muted-foreground: #7a5a3f; /* warm brown-gray secondary text, ~5:1 */
+
+  /* shadcn's --accent is the subtle hover wash, not the brand colour. */
+  --accent: rgb(139 69 19 / 0.09);
+  --accent-foreground: #6b3d1a;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #4d7c2e;
+  --warning: #b45309;
+  --info: #96730a;
+  /* Amber glass, for the WhatsApp reply-window strip. */
+  --warning-surface: rgb(180 83 9 / 0.08);
+  --warning-border: rgb(180 83 9 / 0.22);
+
+  --border: rgb(42 26 15 / 0.08);
+  --input: rgb(42 26 15 / 0.12);
+  --ring: #6b3d1a; /* ~7:1 on the light page */
+
+  /* --- Agentra additions --- */
+
+  /* Glass recipe: warm white translucent fill, blur, shadow carries the
+     depth. The page is a shade deeper than the panels so panels read as
+     raised rather than as holes in a cream sheet. */
+  --glass-bg: rgb(255 250 240 / 0.76);
+  --glass-bg-hover: rgb(255 250 240 / 0.92);
+  --glass-bg-strong: rgb(255 250 240 / 0.96);
+  --glass-border: rgb(255 250 240 / 0.9);
+  --glass-highlight: rgb(255 250 240 / 0.9);
+  --glass-blur: 24px;
+  /* The glossy top-highlight wash on every panel (see .glass in the
+     components layer). Mode-only, not accent-specific — it represents an
+     ambient light reflecting off glass, not a brand colour, so the six
+     accent blocks below deliberately don't redefine it and just inherit
+     this via the normal cascade. */
+  --glass-gloss: rgb(255 255 255 / 0.55);
+  /* Elevation shadow gets a faint copper cast — a "lit from the scene behind
+     it" cue rather than plain drop shadow, which is what sells depth. */
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(42 26 15 / 0.06),
+    0 14px 32px -10px rgb(139 69 19 / 0.18);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(42 26 15 / 0.06),
+    0 32px 68px -14px rgb(139 69 19 / 0.26);
+
+  /* Sidebar reads slightly more opaque than content panels. */
+  --sidebar: rgb(255 250 240 / 0.72);
+  --sidebar-foreground: #2a1a0f;
+  --sidebar-primary: #6b3d1a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(139 69 19 / 0.12);
+  --sidebar-accent-foreground: #6b3d1a;
+  --sidebar-border: rgb(42 26 15 / 0.07);
+  --sidebar-ring: #6b3d1a;
+
+  /* Brand accents that are not fills */
+  --brand: #a8672e; /* the copper itself */
+  --brand-text: #7a4a1f; /* accent-coloured text/icons, ~7:1 on light */
+  --brand-soft: rgb(139 69 19 / 0.14); /* tinted wash behind active items */
+  --brand-glow: rgb(168 103 46 / 0.2); /* glow shadow */
+  --brand-2: #96730a; /* goldenrod counterpart, the scene's second light colour */
+  --foreground-subtle: #8a7057; /* timestamps, tertiary meta */
+
+  /* Charts. Fixed slot order, never cycled. Spread across the
+     copper/gold/mahogany/olive/rust family so series stay distinguishable
+     and nothing reads as a stray cool colour from the old palette. */
+  --chart-1: #a8672e; /* copper  — the accent, default single series */
+  --chart-2: #b8860b; /* gold    */
+  --chart-3: #6b4423; /* mahogany */
+  --chart-4: #6b7c3a; /* olive   */
+  --chart-5: #9c4a2e; /* rust    */
+  --chart-grid: rgb(42 26 15 / 0.08);
+
+  /* Status colours for CHARTS, separate from the pill colours above. Pulled
+     down in lightness/chroma from the pill hues so a stacked bar chart
+     reads calm rather than neon across a few thousand pixels. */
+  --chart-completed: #5c7a35;
+  --chart-pending: #a3671a;
+  --chart-cancelled: #6b4423;
+}
+
+/* ---------------------------------------------------------------------------
+   2. DARK MODE
+   Near-black warm page (never pure black), panels a brown-tinted film over
+   it, 1px light border, and a coloured shadow that matches the two point
+   lights in the WebGL scene (copper + gold) so panels look lit by their
+   backdrop.
+   ------------------------------------------------------------------------ */
+.dark {
+  /* The page runs darker than the panels. Previously both sat at almost the
+     same value, so every card dissolved into the background and the whole
+     screen read as one flat sheet. */
+  --background: #0c0704;
+  --background-deep: #060301;
+  --foreground: #f2e8d8; /* warm ivory */
+
+  --card: rgb(200 150 90 / 0.06);
+  --card-foreground: #f0e6d4;
+  --popover: rgb(26 16 8 / 0.92);
+  --popover-foreground: #f0e6d4;
+
+  --primary: #a8672e;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(224 200 160 / 0.07);
+  --secondary-foreground: #f0e6d4;
+  --muted: rgb(224 200 160 / 0.06);
+  --muted-foreground: #b8a186; /* muted warm tan-gray, ~7:1 on the page */
+
+  --accent: rgb(212 162 78 / 0.16);
+  --accent-foreground: #e0b96a;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a0505;
+  --success: #9ccc65;
+  --warning: #fbbf24;
+  --info: #d4af37;
+  --warning-surface: rgb(251 191 36 / 0.1);
+  --warning-border: rgb(251 191 36 / 0.28);
+
+  --border: rgb(224 200 160 / 0.1);
+  --input: rgb(224 200 160 / 0.14);
+  --ring: #d4a24e; /* ~7:1 on the page */
+
+  /* Glass recipe. Three things doing the work:
+       - a faint brown-tan film over the near-black page
+       - a 1px hairline, brighter along the top than the sides, which is what
+         makes a pane look lit rather than outlined
+       - a real drop shadow carrying a copper/gold cast, echoing the scene */
+  --glass-bg: rgb(200 150 90 / 0.06);
+  --glass-bg-hover: rgb(200 150 90 / 0.1);
+  --glass-bg-strong: rgb(28 18 10 / 0.84);
+  --glass-border: rgb(214 170 110 / 0.1);
+  --glass-highlight: rgb(224 185 120 / 0.16);
+  --glass-blur: 24px;
+  /* Same reasoning as the light-mode copy above — much lower alpha since a
+     little white goes a long way on a near-black panel. */
+  --glass-gloss: rgb(255 255 255 / 0.07);
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 28px -6px rgb(181 114 47 / 0.22),
+    0 4px 20px -8px rgb(212 162 78 / 0.12);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(0 0 0 / 0.5),
+    0 28px 72px -12px rgb(181 114 47 / 0.3),
+    0 8px 32px -10px rgb(212 162 78 / 0.16);
+
+  --sidebar: rgb(224 200 160 / 0.06);
+  --sidebar-foreground: #f0e6d4;
+  --sidebar-primary: #d4a24e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(212 162 78 / 0.16);
+  --sidebar-accent-foreground: #e8c98a;
+  --sidebar-border: rgb(224 200 160 / 0.1);
+  --sidebar-ring: #d4a24e;
+
+  --brand: #cc7a3d;
+  --brand-text: #e8a86c; /* ~9:1 on the page */
+  --brand-soft: rgb(204 122 61 / 0.16);
+  --brand-glow: rgb(204 122 61 / 0.4);
+  --brand-2: #d4af37; /* gold counterpart, the scene's second light colour */
+  --foreground-subtle: #a08a6d;
+
+  /* Same slot order as light, re-stepped for the dark surface rather than
+     brightened — a straight flip pushes these out of the lightness band. */
+  --chart-1: #cc7a3d;
+  --chart-2: #d4af37;
+  --chart-3: #a67c52;
+  --chart-4: #9caf5c;
+  --chart-5: #c25a45;
+  --chart-grid: rgb(224 200 160 / 0.08);
+
+  /* Re-stepped for the dark surface rather than brightened, same as the
+     categorical slots above. */
+  --chart-completed: #9ccc65;
+  --chart-pending: #d99a3d;
+  --chart-cancelled: #cc7a3d;
+}
+
+/* ---------------------------------------------------------------------------
+   1b. THE OTHER SIX ACCENTS — Silver, Blue, Green, Nebula, Ember, Opal,
+   each light + dark. Every block redefines every token the Brown default above
+   does (never a partial override), so there is no risk of a stray brown
+   value leaking into another accent through the cascade. See the header
+   comment for why these selectors are safe to just append here.
+   ------------------------------------------------------------------------ */
+
+/* ---- SILVER — light --------------------------------------------------- */
+html[data-accent='silver'] {
+  --background: #f2f3f5;
+  --background-deep: #e4e7eb;
+  --foreground: #1a1d21;
+
+  --card: rgb(255 255 255 / 0.66);
+  --card-foreground: #1a1d21;
+  --popover: rgb(255 255 255 / 0.92);
+  --popover-foreground: #1a1d21;
+
+  --primary: #45505e;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(26 29 33 / 0.05);
+  --secondary-foreground: #1a1d21;
+  --muted: rgb(26 29 33 / 0.045);
+  --muted-foreground: #5f6b7a;
+
+  --accent: rgb(90 105 122 / 0.09);
+  --accent-foreground: #3d4a58;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #15803d;
+  --warning: #b45309;
+  --info: #475569;
+  --warning-surface: rgb(180 83 9 / 0.08);
+  --warning-border: rgb(180 83 9 / 0.22);
+
+  --border: rgb(26 29 33 / 0.08);
+  --input: rgb(26 29 33 / 0.12);
+  --ring: #45505e;
+
+  --glass-bg: rgb(255 255 255 / 0.76);
+  --glass-bg-hover: rgb(255 255 255 / 0.92);
+  --glass-bg-strong: rgb(255 255 255 / 0.96);
+  --glass-border: rgb(255 255 255 / 0.9);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(26 29 33 / 0.06),
+    0 14px 32px -10px rgb(90 105 122 / 0.18);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(26 29 33 / 0.06),
+    0 32px 68px -14px rgb(90 105 122 / 0.26);
+
+  --sidebar: rgb(255 255 255 / 0.72);
+  --sidebar-foreground: #1a1d21;
+  --sidebar-primary: #45505e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(90 105 122 / 0.12);
+  --sidebar-accent-foreground: #3d4a58;
+  --sidebar-border: rgb(26 29 33 / 0.07);
+  --sidebar-ring: #45505e;
+
+  --brand: #7c8a99;
+  --brand-text: #4a5568;
+  --brand-soft: rgb(90 105 122 / 0.14);
+  --brand-glow: rgb(124 138 153 / 0.2);
+  --brand-2: #9aa8b8;
+  --foreground-subtle: #7a8492;
+
+  --chart-1: #7c8a99;
+  --chart-2: #ab9a7c;
+  --chart-3: #4a5568;
+  --chart-4: #6b8a8a;
+  --chart-5: #9c6b6b;
+  --chart-grid: rgb(26 29 33 / 0.08);
+
+  --chart-completed: #4a7a5a;
+  --chart-pending: #ab9a7c;
+  --chart-cancelled: #4a5568;
+}
+
+/* ---- SILVER — dark ------------------------------------------------------ */
+html.dark[data-accent='silver'] {
+  --background: #0a0b0d;
+  --background-deep: #050506;
+  --foreground: #eef0f2;
+
+  --card: rgb(180 190 200 / 0.06);
+  --card-foreground: #eef0f2;
+  --popover: rgb(18 20 23 / 0.92);
+  --popover-foreground: #eef0f2;
+
+  --primary: #8a96a3;
+  --primary-foreground: #12151a;
+
+  --secondary: rgb(200 210 220 / 0.07);
+  --secondary-foreground: #eef0f2;
+  --muted: rgb(200 210 220 / 0.06);
+  --muted-foreground: #a8b2bd;
+
+  --accent: rgb(148 163 184 / 0.16);
+  --accent-foreground: #cbd5e0;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a0505;
+  --success: #6ee7a0;
+  --warning: #fbbf24;
+  --info: #94a3b8;
+  --warning-surface: rgb(251 191 36 / 0.1);
+  --warning-border: rgb(251 191 36 / 0.28);
+
+  --border: rgb(200 210 220 / 0.1);
+  --input: rgb(200 210 220 / 0.14);
+  --ring: #a8b4c2;
+
+  --glass-bg: rgb(180 190 200 / 0.06);
+  --glass-bg-hover: rgb(180 190 200 / 0.1);
+  --glass-bg-strong: rgb(20 22 25 / 0.84);
+  --glass-border: rgb(200 212 224 / 0.1);
+  --glass-highlight: rgb(210 220 230 / 0.16);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 28px -6px rgb(148 163 184 / 0.22),
+    0 4px 20px -8px rgb(196 179 154 / 0.12);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(0 0 0 / 0.5),
+    0 28px 72px -12px rgb(148 163 184 / 0.3),
+    0 8px 32px -10px rgb(196 179 154 / 0.16);
+
+  --sidebar: rgb(200 210 220 / 0.06);
+  --sidebar-foreground: #eef0f2;
+  --sidebar-primary: #a8b4c2;
+  --sidebar-primary-foreground: #12151a;
+  --sidebar-accent: rgb(148 163 184 / 0.16);
+  --sidebar-accent-foreground: #cbd5e0;
+  --sidebar-border: rgb(200 210 220 / 0.1);
+  --sidebar-ring: #a8b4c2;
+
+  --brand: #a8b4c2;
+  --brand-text: #cbd5e0;
+  --brand-soft: rgb(168 180 194 / 0.16);
+  --brand-glow: rgb(168 180 194 / 0.4);
+  --brand-2: #c4b39a;
+  --foreground-subtle: #8b96a3;
+
+  --chart-1: #a8b4c2;
+  --chart-2: #c4b39a;
+  --chart-3: #6b7684;
+  --chart-4: #8aada8;
+  --chart-5: #b48a8a;
+  --chart-grid: rgb(200 210 220 / 0.08);
+
+  --chart-completed: #7ecb96;
+  --chart-pending: #c4b39a;
+  --chart-cancelled: #a8b4c2;
+}
+
+/* ---- BLUE — light -------------------------------------------------------- */
+html[data-accent='blue'] {
+  --background: #eef3fb;
+  --background-deep: #dde8f7;
+  --foreground: #0d1b2e;
+
+  --card: rgb(255 255 255 / 0.66);
+  --card-foreground: #0d1b2e;
+  --popover: rgb(255 255 255 / 0.92);
+  --popover-foreground: #0d1b2e;
+
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(13 27 46 / 0.05);
+  --secondary-foreground: #0d1b2e;
+  --muted: rgb(13 27 46 / 0.045);
+  --muted-foreground: #4a5f80;
+
+  --accent: rgb(29 78 216 / 0.09);
+  --accent-foreground: #1d4ed8;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #0f7f5c;
+  --warning: #b45309;
+  --info: #0e7490;
+  --warning-surface: rgb(180 83 9 / 0.08);
+  --warning-border: rgb(180 83 9 / 0.22);
+
+  --border: rgb(13 27 46 / 0.08);
+  --input: rgb(13 27 46 / 0.12);
+  --ring: #1d4ed8;
+
+  --glass-bg: rgb(255 255 255 / 0.76);
+  --glass-bg-hover: rgb(255 255 255 / 0.92);
+  --glass-bg-strong: rgb(255 255 255 / 0.96);
+  --glass-border: rgb(255 255 255 / 0.9);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(13 27 46 / 0.06),
+    0 14px 32px -10px rgb(29 78 216 / 0.18);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(13 27 46 / 0.06),
+    0 32px 68px -14px rgb(29 78 216 / 0.26);
+
+  --sidebar: rgb(255 255 255 / 0.72);
+  --sidebar-foreground: #0d1b2e;
+  --sidebar-primary: #1d4ed8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(29 78 216 / 0.12);
+  --sidebar-accent-foreground: #1d4ed8;
+  --sidebar-border: rgb(13 27 46 / 0.07);
+  --sidebar-ring: #1d4ed8;
+
+  --brand: #2f6fed;
+  --brand-text: #1d4ed8;
+  --brand-soft: rgb(29 78 216 / 0.14);
+  --brand-glow: rgb(47 111 237 / 0.2);
+  --brand-2: #0891b2;
+  --foreground-subtle: #5b6f8f;
+
+  --chart-1: #2f6fed;
+  --chart-2: #0891b2;
+  --chart-3: #7c3aed;
+  --chart-4: #0f7f5c;
+  --chart-5: #b45309;
+  --chart-grid: rgb(13 27 46 / 0.08);
+
+  --chart-completed: #0f7f5c;
+  --chart-pending: #a3671a;
+  --chart-cancelled: #2f6fed;
+}
+
+/* ---- BLUE — dark ---------------------------------------------------------- */
+html.dark[data-accent='blue'] {
+  --background: #050912;
+  --background-deep: #03060c;
+  --foreground: #eaf1fb;
+
+  --card: rgb(160 190 255 / 0.06);
+  --card-foreground: #eaf1fb;
+  --popover: rgb(10 16 28 / 0.92);
+  --popover-foreground: #eaf1fb;
+
+  --primary: #3b6fe8;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(200 220 255 / 0.07);
+  --secondary-foreground: #eaf1fb;
+  --muted: rgb(200 220 255 / 0.06);
+  --muted-foreground: #93a8c9;
+
+  --accent: rgb(59 130 246 / 0.16);
+  --accent-foreground: #93b4fa;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a0505;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #22d3ee;
+  --warning-surface: rgb(251 191 36 / 0.1);
+  --warning-border: rgb(251 191 36 / 0.28);
+
+  --border: rgb(200 220 255 / 0.1);
+  --input: rgb(200 220 255 / 0.14);
+  --ring: #5b8cf5;
+
+  --glass-bg: rgb(160 190 255 / 0.06);
+  --glass-bg-hover: rgb(160 190 255 / 0.1);
+  --glass-bg-strong: rgb(12 18 32 / 0.84);
+  --glass-border: rgb(180 205 255 / 0.1);
+  --glass-highlight: rgb(200 220 255 / 0.16);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 28px -6px rgb(91 140 245 / 0.22),
+    0 4px 20px -8px rgb(34 211 238 / 0.12);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(0 0 0 / 0.5),
+    0 28px 72px -12px rgb(91 140 245 / 0.3),
+    0 8px 32px -10px rgb(34 211 238 / 0.16);
+
+  --sidebar: rgb(200 220 255 / 0.06);
+  --sidebar-foreground: #eaf1fb;
+  --sidebar-primary: #5b8cf5;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(91 140 245 / 0.16);
+  --sidebar-accent-foreground: #bcd0fb;
+  --sidebar-border: rgb(200 220 255 / 0.1);
+  --sidebar-ring: #5b8cf5;
+
+  --brand: #5b8cf5;
+  --brand-text: #93b4fa;
+  --brand-soft: rgb(91 140 245 / 0.16);
+  --brand-glow: rgb(91 140 245 / 0.4);
+  --brand-2: #22d3ee;
+  --foreground-subtle: #7e93b8;
+
+  --chart-1: #5b8cf5;
+  --chart-2: #22d3ee;
+  --chart-3: #a78bfa;
+  --chart-4: #34d399;
+  --chart-5: #d97706;
+  --chart-grid: rgb(200 220 255 / 0.08);
+
+  --chart-completed: #34d399;
+  --chart-pending: #d99a3d;
+  --chart-cancelled: #5b8cf5;
+}
+
+/* ---- GREEN — light --------------------------------------------------------- */
+html[data-accent='green'] {
+  --background: #eef7f0;
+  --background-deep: #ddefe1;
+  --foreground: #0d1f14;
+
+  --card: rgb(255 255 255 / 0.66);
+  --card-foreground: #0d1f14;
+  --popover: rgb(255 255 255 / 0.92);
+  --popover-foreground: #0d1f14;
+
+  --primary: #15803d;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(13 31 20 / 0.05);
+  --secondary-foreground: #0d1f14;
+  --muted: rgb(13 31 20 / 0.045);
+  --muted-foreground: #4a6b55;
+
+  --accent: rgb(21 128 61 / 0.09);
+  --accent-foreground: #15803d;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #15803d;
+  --warning: #b45309;
+  --info: #0e7490;
+  --warning-surface: rgb(180 83 9 / 0.08);
+  --warning-border: rgb(180 83 9 / 0.22);
+
+  --border: rgb(13 31 20 / 0.08);
+  --input: rgb(13 31 20 / 0.12);
+  --ring: #15803d;
+
+  --glass-bg: rgb(255 255 255 / 0.76);
+  --glass-bg-hover: rgb(255 255 255 / 0.92);
+  --glass-bg-strong: rgb(255 255 255 / 0.96);
+  --glass-border: rgb(255 255 255 / 0.9);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(13 31 20 / 0.06),
+    0 14px 32px -10px rgb(21 128 61 / 0.18);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(13 31 20 / 0.06),
+    0 32px 68px -14px rgb(21 128 61 / 0.26);
+
+  --sidebar: rgb(255 255 255 / 0.72);
+  --sidebar-foreground: #0d1f14;
+  --sidebar-primary: #15803d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(21 128 61 / 0.12);
+  --sidebar-accent-foreground: #15803d;
+  --sidebar-border: rgb(13 31 20 / 0.07);
+  --sidebar-ring: #15803d;
+
+  --brand: #22a35a;
+  --brand-text: #15803d;
+  --brand-soft: rgb(21 128 61 / 0.14);
+  --brand-glow: rgb(34 163 90 / 0.2);
+  --brand-2: #0d9488;
+  --foreground-subtle: #5c7d68;
+
+  --chart-1: #22a35a;
+  --chart-2: #0d9488;
+  --chart-3: #6b7c3a;
+  --chart-4: #b8860b;
+  --chart-5: #4a5568;
+  --chart-grid: rgb(13 31 20 / 0.08);
+
+  --chart-completed: #15803d;
+  --chart-pending: #a3671a;
+  --chart-cancelled: #4a5568;
+}
+
+/* ---- GREEN — dark ------------------------------------------------------------ */
+html.dark[data-accent='green'] {
+  --background: #050b07;
+  --background-deep: #030603;
+  --foreground: #e8f7ec;
+
+  --card: rgb(160 220 180 / 0.06);
+  --card-foreground: #e8f7ec;
+  --popover: rgb(10 20 14 / 0.92);
+  --popover-foreground: #e8f7ec;
+
+  --primary: #15803d;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(200 230 210 / 0.07);
+  --secondary-foreground: #e8f7ec;
+  --muted: rgb(200 230 210 / 0.06);
+  --muted-foreground: #8fb89d;
+
+  --accent: rgb(34 163 90 / 0.16);
+  --accent-foreground: #6ee7a0;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a0505;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --info: #22d3ee;
+  --warning-surface: rgb(251 191 36 / 0.1);
+  --warning-border: rgb(251 191 36 / 0.28);
+
+  --border: rgb(200 230 210 / 0.1);
+  --input: rgb(200 230 210 / 0.14);
+  --ring: #4ade80;
+
+  --glass-bg: rgb(160 220 180 / 0.06);
+  --glass-bg-hover: rgb(160 220 180 / 0.1);
+  --glass-bg-strong: rgb(10 20 14 / 0.84);
+  --glass-border: rgb(180 230 200 / 0.1);
+  --glass-highlight: rgb(190 235 205 / 0.16);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 28px -6px rgb(52 194 116 / 0.22),
+    0 4px 20px -8px rgb(45 212 191 / 0.12);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(0 0 0 / 0.5),
+    0 28px 72px -12px rgb(52 194 116 / 0.3),
+    0 8px 32px -10px rgb(45 212 191 / 0.16);
+
+  --sidebar: rgb(200 230 210 / 0.06);
+  --sidebar-foreground: #e8f7ec;
+  --sidebar-primary: #4ade80;
+  --sidebar-primary-foreground: #0a0f0c;
+  --sidebar-accent: rgb(52 194 116 / 0.16);
+  --sidebar-accent-foreground: #9cf0bc;
+  --sidebar-border: rgb(200 230 210 / 0.1);
+  --sidebar-ring: #4ade80;
+
+  --brand: #34c274;
+  --brand-text: #6ee7a0;
+  --brand-soft: rgb(52 194 116 / 0.16);
+  --brand-glow: rgb(52 194 116 / 0.4);
+  --brand-2: #2dd4bf;
+  --foreground-subtle: #7fa88c;
+
+  --chart-1: #34c274;
+  --chart-2: #2dd4bf;
+  --chart-3: #9caf5c;
+  --chart-4: #d4af37;
+  --chart-5: #94a3b3;
+  --chart-grid: rgb(200 230 210 / 0.08);
+
+  --chart-completed: #4ade80;
+  --chart-pending: #d99a3d;
+  --chart-cancelled: #94a3b3;
+}
+
+/* ---- NEBULA — light -------------------------------------------------------- */
+html[data-accent='nebula'] {
+  --background: #f1f0fc;
+  --background-deep: #e2dff8;
+  --foreground: #1a1533;
+
+  --card: rgb(255 255 255 / 0.66);
+  --card-foreground: #1a1533;
+  --popover: rgb(255 255 255 / 0.92);
+  --popover-foreground: #1a1533;
+
+  --primary: #4338ca;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(26 21 51 / 0.05);
+  --secondary-foreground: #1a1533;
+  --muted: rgb(26 21 51 / 0.045);
+  --muted-foreground: #4f4a7a;
+
+  --accent: rgb(67 56 202 / 0.09);
+  --accent-foreground: #4338ca;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #0f7f5c;
+  --warning: #b45309;
+  --info: #0284c7;
+  --warning-surface: rgb(180 83 9 / 0.08);
+  --warning-border: rgb(180 83 9 / 0.22);
+
+  --border: rgb(26 21 51 / 0.08);
+  --input: rgb(26 21 51 / 0.12);
+  --ring: #4338ca;
+
+  --glass-bg: rgb(255 255 255 / 0.76);
+  --glass-bg-hover: rgb(255 255 255 / 0.92);
+  --glass-bg-strong: rgb(255 255 255 / 0.96);
+  --glass-border: rgb(255 255 255 / 0.9);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(26 21 51 / 0.06),
+    0 14px 32px -10px rgb(67 56 202 / 0.18);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(26 21 51 / 0.06),
+    0 32px 68px -14px rgb(67 56 202 / 0.26);
+
+  --sidebar: rgb(255 255 255 / 0.72);
+  --sidebar-foreground: #1a1533;
+  --sidebar-primary: #4338ca;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(67 56 202 / 0.12);
+  --sidebar-accent-foreground: #4338ca;
+  --sidebar-border: rgb(26 21 51 / 0.07);
+  --sidebar-ring: #4338ca;
+
+  --brand: #6366f1;
+  --brand-text: #4338ca;
+  --brand-soft: rgb(67 56 202 / 0.14);
+  --brand-glow: rgb(99 102 241 / 0.2);
+  --brand-2: #0284c7;
+  --foreground-subtle: #5f5a8a;
+
+  --chart-1: #6366f1;
+  --chart-2: #0284c7;
+  --chart-3: #c026d3;
+  --chart-4: #0f7f5c;
+  --chart-5: #b45309;
+  --chart-grid: rgb(26 21 51 / 0.08);
+
+  --chart-completed: #0f7f5c;
+  --chart-pending: #a3671a;
+  --chart-cancelled: #6366f1;
+}
+
+/* ---- NEBULA — dark ---------------------------------------------------------- */
+html.dark[data-accent='nebula'] {
+  --background: #08071a;
+  --background-deep: #050512;
+  --foreground: #ece9fb;
+
+  --card: rgb(180 170 255 / 0.06);
+  --card-foreground: #ece9fb;
+  --popover: rgb(14 12 28 / 0.92);
+  --popover-foreground: #ece9fb;
+
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(210 200 255 / 0.07);
+  --secondary-foreground: #ece9fb;
+  --muted: rgb(210 200 255 / 0.06);
+  --muted-foreground: #a29cc9;
+
+  --accent: rgb(99 102 241 / 0.16);
+  --accent-foreground: #a5b4fc;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a0505;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #38bdf8;
+  --warning-surface: rgb(251 191 36 / 0.1);
+  --warning-border: rgb(251 191 36 / 0.28);
+
+  --border: rgb(210 200 255 / 0.1);
+  --input: rgb(210 200 255 / 0.14);
+  --ring: #818cf8;
+
+  --glass-bg: rgb(180 170 255 / 0.06);
+  --glass-bg-hover: rgb(180 170 255 / 0.1);
+  --glass-bg-strong: rgb(16 14 30 / 0.84);
+  --glass-border: rgb(190 180 255 / 0.1);
+  --glass-highlight: rgb(210 200 255 / 0.16);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 28px -6px rgb(99 102 241 / 0.22),
+    0 4px 20px -8px rgb(232 121 249 / 0.12);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(0 0 0 / 0.5),
+    0 28px 72px -12px rgb(99 102 241 / 0.3),
+    0 8px 32px -10px rgb(232 121 249 / 0.16);
+
+  --sidebar: rgb(210 200 255 / 0.06);
+  --sidebar-foreground: #ece9fb;
+  --sidebar-primary: #818cf8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(99 102 241 / 0.16);
+  --sidebar-accent-foreground: #c7d2fe;
+  --sidebar-border: rgb(210 200 255 / 0.1);
+  --sidebar-ring: #818cf8;
+
+  --brand: #6366f1;
+  --brand-text: #a5b4fc;
+  --brand-soft: rgb(99 102 241 / 0.16);
+  --brand-glow: rgb(99 102 241 / 0.4);
+  --brand-2: #38bdf8;
+  --foreground-subtle: #8b85b8;
+
+  --chart-1: #6366f1;
+  --chart-2: #38bdf8;
+  --chart-3: #e879f9;
+  --chart-4: #34d399;
+  --chart-5: #d97706;
+  --chart-grid: rgb(210 200 255 / 0.08);
+
+  --chart-completed: #34d399;
+  --chart-pending: #d99a3d;
+  --chart-cancelled: #6366f1;
+}
+
+/* ---- EMBER — light --------------------------------------------------------- */
+html[data-accent='ember'] {
+  --background: #fdf1ea;
+  --background-deep: #fbe4d4;
+  --foreground: #2e1508;
+
+  --card: rgb(255 255 255 / 0.66);
+  --card-foreground: #2e1508;
+  --popover: rgb(255 255 255 / 0.92);
+  --popover-foreground: #2e1508;
+
+  --primary: #c2410c;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(46 21 8 / 0.05);
+  --secondary-foreground: #2e1508;
+  --muted: rgb(46 21 8 / 0.045);
+  --muted-foreground: #8a5a3d;
+
+  --accent: rgb(194 65 12 / 0.09);
+  --accent-foreground: #c2410c;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #15803d;
+  --warning: #b45309;
+  --info: #be185d;
+  --warning-surface: rgb(180 83 9 / 0.08);
+  --warning-border: rgb(180 83 9 / 0.22);
+
+  --border: rgb(46 21 8 / 0.08);
+  --input: rgb(46 21 8 / 0.12);
+  --ring: #c2410c;
+
+  --glass-bg: rgb(255 255 255 / 0.76);
+  --glass-bg-hover: rgb(255 255 255 / 0.92);
+  --glass-bg-strong: rgb(255 255 255 / 0.96);
+  --glass-border: rgb(255 255 255 / 0.9);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(46 21 8 / 0.06),
+    0 14px 32px -10px rgb(194 65 12 / 0.18);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(46 21 8 / 0.06),
+    0 32px 68px -14px rgb(194 65 12 / 0.26);
+
+  --sidebar: rgb(255 255 255 / 0.72);
+  --sidebar-foreground: #2e1508;
+  --sidebar-primary: #c2410c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(194 65 12 / 0.12);
+  --sidebar-accent-foreground: #c2410c;
+  --sidebar-border: rgb(46 21 8 / 0.07);
+  --sidebar-ring: #c2410c;
+
+  --brand: #f97316;
+  --brand-text: #c2410c;
+  --brand-soft: rgb(194 65 12 / 0.14);
+  --brand-glow: rgb(249 115 22 / 0.2);
+  --brand-2: #db2777;
+  --foreground-subtle: #8a6248;
+
+  --chart-1: #f97316;
+  --chart-2: #db2777;
+  --chart-3: #d97706;
+  --chart-4: #15803d;
+  --chart-5: #7c3aed;
+  --chart-grid: rgb(46 21 8 / 0.08);
+
+  --chart-completed: #15803d;
+  --chart-pending: #b45309;
+  --chart-cancelled: #db2777;
+}
+
+/* ---- EMBER — dark ----------------------------------------------------------- */
+html.dark[data-accent='ember'] {
+  --background: #150a05;
+  --background-deep: #0c0503;
+  --foreground: #fdece0;
+
+  --card: rgb(255 190 150 / 0.06);
+  --card-foreground: #fdece0;
+  --popover: rgb(24 13 8 / 0.92);
+  --popover-foreground: #fdece0;
+
+  --primary: #f97316;
+  --primary-foreground: #1a0800;
+
+  --secondary: rgb(255 210 180 / 0.07);
+  --secondary-foreground: #fdece0;
+  --muted: rgb(255 210 180 / 0.06);
+  --muted-foreground: #cba084;
+
+  --accent: rgb(249 115 22 / 0.16);
+  --accent-foreground: #fdba74;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a0505;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #f472b6;
+  --warning-surface: rgb(251 191 36 / 0.1);
+  --warning-border: rgb(251 191 36 / 0.28);
+
+  --border: rgb(255 210 180 / 0.1);
+  --input: rgb(255 210 180 / 0.14);
+  --ring: #fb923c;
+
+  --glass-bg: rgb(255 190 150 / 0.06);
+  --glass-bg-hover: rgb(255 190 150 / 0.1);
+  --glass-bg-strong: rgb(28 15 9 / 0.84);
+  --glass-border: rgb(255 200 165 / 0.1);
+  --glass-highlight: rgb(255 210 180 / 0.16);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 28px -6px rgb(249 115 22 / 0.22),
+    0 4px 20px -8px rgb(236 72 153 / 0.12);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(0 0 0 / 0.5),
+    0 28px 72px -12px rgb(249 115 22 / 0.3),
+    0 8px 32px -10px rgb(236 72 153 / 0.16);
+
+  --sidebar: rgb(255 210 180 / 0.06);
+  --sidebar-foreground: #fdece0;
+  --sidebar-primary: #fb923c;
+  --sidebar-primary-foreground: #1a0800;
+  --sidebar-accent: rgb(249 115 22 / 0.16);
+  --sidebar-accent-foreground: #fdba74;
+  --sidebar-border: rgb(255 210 180 / 0.1);
+  --sidebar-ring: #fb923c;
+
+  --brand: #f97316;
+  --brand-text: #fdba74;
+  --brand-soft: rgb(249 115 22 / 0.16);
+  --brand-glow: rgb(249 115 22 / 0.4);
+  --brand-2: #ec4899;
+  --foreground-subtle: #b8927a;
+
+  --chart-1: #f97316;
+  --chart-2: #ec4899;
+  --chart-3: #fbbf24;
+  --chart-4: #34d399;
+  --chart-5: #a78bfa;
+  --chart-grid: rgb(255 210 180 / 0.08);
+
+  --chart-completed: #34d399;
+  --chart-pending: #fbbf24;
+  --chart-cancelled: #f97316;
+}
+
+/* ---- OPAL — light ----------------------------------------------------------- */
+html[data-accent='opal'] {
+  --background: #eefaf8;
+  --background-deep: #dcf3ef;
+  --foreground: #08211d;
+
+  --card: rgb(255 255 255 / 0.66);
+  --card-foreground: #08211d;
+  --popover: rgb(255 255 255 / 0.92);
+  --popover-foreground: #08211d;
+
+  --primary: #0d9488;
+  --primary-foreground: #ffffff;
+
+  --secondary: rgb(8 33 29 / 0.05);
+  --secondary-foreground: #08211d;
+  --muted: rgb(8 33 29 / 0.045);
+  --muted-foreground: #457168;
+
+  --accent: rgb(13 148 136 / 0.09);
+  --accent-foreground: #0d9488;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #0f7f5c;
+  --warning: #b45309;
+  --info: #7c3aed;
+  --warning-surface: rgb(180 83 9 / 0.08);
+  --warning-border: rgb(180 83 9 / 0.22);
+
+  --border: rgb(8 33 29 / 0.08);
+  --input: rgb(8 33 29 / 0.12);
+  --ring: #0d9488;
+
+  --glass-bg: rgb(255 255 255 / 0.76);
+  --glass-bg-hover: rgb(255 255 255 / 0.92);
+  --glass-bg-strong: rgb(255 255 255 / 0.96);
+  --glass-border: rgb(255 255 255 / 0.9);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(8 33 29 / 0.06),
+    0 14px 32px -10px rgb(13 148 136 / 0.18);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(8 33 29 / 0.06),
+    0 32px 68px -14px rgb(13 148 136 / 0.26);
+
+  --sidebar: rgb(255 255 255 / 0.72);
+  --sidebar-foreground: #08211d;
+  --sidebar-primary: #0d9488;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(13 148 136 / 0.12);
+  --sidebar-accent-foreground: #0d9488;
+  --sidebar-border: rgb(8 33 29 / 0.07);
+  --sidebar-ring: #0d9488;
+
+  --brand: #2dd4bf;
+  --brand-text: #0d9488;
+  --brand-soft: rgb(13 148 136 / 0.14);
+  --brand-glow: rgb(45 212 191 / 0.2);
+  --brand-2: #7c3aed;
+  --foreground-subtle: #517d74;
+
+  --chart-1: #2dd4bf;
+  --chart-2: #7c3aed;
+  --chart-3: #db2777;
+  --chart-4: #0f7f5c;
+  --chart-5: #b45309;
+  --chart-grid: rgb(8 33 29 / 0.08);
+
+  --chart-completed: #0f7f5c;
+  --chart-pending: #b45309;
+  --chart-cancelled: #7c3aed;
+}
+
+/* ---- OPAL — dark ------------------------------------------------------------ */
+html.dark[data-accent='opal'] {
+  --background: #051211;
+  --background-deep: #030b0a;
+  --foreground: #e3fbf7;
+
+  --card: rgb(160 240 225 / 0.06);
+  --card-foreground: #e3fbf7;
+  --popover: rgb(8 20 19 / 0.92);
+  --popover-foreground: #e3fbf7;
+
+  --primary: #2dd4bf;
+  --primary-foreground: #00201c;
+
+  --secondary: rgb(190 240 230 / 0.07);
+  --secondary-foreground: #e3fbf7;
+  --muted: rgb(190 240 230 / 0.06);
+  --muted-foreground: #8fbdb4;
+
+  --accent: rgb(45 212 191 / 0.16);
+  --accent-foreground: #99f6e4;
+
+  --destructive: #f87171;
+  --destructive-foreground: #1a0505;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #a78bfa;
+  --warning-surface: rgb(251 191 36 / 0.1);
+  --warning-border: rgb(251 191 36 / 0.28);
+
+  --border: rgb(190 240 230 / 0.1);
+  --input: rgb(190 240 230 / 0.14);
+  --ring: #5eead4;
+
+  --glass-bg: rgb(160 240 225 / 0.06);
+  --glass-bg-hover: rgb(160 240 225 / 0.1);
+  --glass-bg-strong: rgb(10 22 21 / 0.84);
+  --glass-border: rgb(170 240 225 / 0.1);
+  --glass-highlight: rgb(190 240 230 / 0.16);
+  --glass-blur: 24px;
+  --glass-shadow:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 10px 28px -6px rgb(45 212 191 / 0.22),
+    0 4px 20px -8px rgb(167 139 250 / 0.12);
+  --glass-shadow-lg:
+    0 1px 0 0 var(--glass-highlight) inset,
+    0 2px 4px rgb(0 0 0 / 0.5),
+    0 28px 72px -12px rgb(45 212 191 / 0.3),
+    0 8px 32px -10px rgb(167 139 250 / 0.16);
+
+  --sidebar: rgb(190 240 230 / 0.06);
+  --sidebar-foreground: #e3fbf7;
+  --sidebar-primary: #5eead4;
+  --sidebar-primary-foreground: #00201c;
+  --sidebar-accent: rgb(45 212 191 / 0.16);
+  --sidebar-accent-foreground: #99f6e4;
+  --sidebar-border: rgb(190 240 230 / 0.1);
+  --sidebar-ring: #5eead4;
+
+  --brand: #2dd4bf;
+  --brand-text: #99f6e4;
+  --brand-soft: rgb(45 212 191 / 0.16);
+  --brand-glow: rgb(45 212 191 / 0.4);
+  --brand-2: #a78bfa;
+  --foreground-subtle: #7fa89f;
+
+  --chart-1: #2dd4bf;
+  --chart-2: #a78bfa;
+  --chart-3: #f472b6;
+  --chart-4: #34d399;
+  --chart-5: #fbbf24;
+  --chart-grid: rgb(190 240 230 / 0.08);
+
+  --chart-completed: #34d399;
+  --chart-pending: #fbbf24;
+  --chart-cancelled: #a78bfa;
+}
+
+/* ---------------------------------------------------------------------------
+   3. Expose tokens to Tailwind. `inline` keeps the var() reference in the
+   generated utility, so a utility written once resolves per theme.
+   ------------------------------------------------------------------------ */
+@theme inline {
+  --color-background: var(--background);
+  --color-background-deep: var(--background-deep);
+  --color-foreground: var(--foreground);
+  --color-foreground-subtle: var(--foreground-subtle);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-border: var(--warning-border);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-glass: var(--glass-bg);
+  --color-glass-hover: var(--glass-bg-hover);
+  --color-glass-strong: var(--glass-bg-strong);
+  --color-glass-border: var(--glass-border);
+  --color-glass-highlight: var(--glass-highlight);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-brand: var(--brand);
+  --color-brand-text: var(--brand-text);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-2: var(--brand-2);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-completed: var(--chart-completed);
+  --color-chart-pending: var(--chart-pending);
+  --color-chart-cancelled: var(--chart-cancelled);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+
+  --blur-glass: var(--glass-blur);
+  --shadow-glass: var(--glass-shadow);
+  --shadow-glass-lg: var(--glass-shadow-lg);
+  --shadow-glow: 0 0 0 1px var(--brand-glow), 0 8px 28px var(--brand-glow);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* ---------------------------------------------------------------------------
+   4. Base element styles
+   ------------------------------------------------------------------------ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The base wash beneath the WebGL scene (src/scene/AmbientScene.tsx). The
+     scene itself now carries the colour and movement that used to live in
+     three stacked radial gradients here — this just keeps the page from
+     going flat-black at the canvas edges and behind the sidebar/topbar,
+     which sit above the canvas and would otherwise show a colour seam.
+     Fixed, so it does not scroll with content. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    /* Furthest back — the WebGL canvas (z-index -2, see AmbientScene) paints
+       above this and is transparent between its shapes, so this shows
+       through at the edges instead of the canvas going flat black there. */
+    z-index: -3;
+    background: linear-gradient(170deg, var(--background) 0%, var(--background-deep) 100%);
+  }
+
+  /* A very fine grain over the gradient. Large flat gradients band visibly on
+     cheap panels; a little noise breaks the banding up and stops the dark mode
+     looking like a plastic sheet. Barely perceptible on purpose. */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    /* Nearest of the three background layers — a subtle grain over the
+       canvas, still behind all real content. */
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .dark body::after {
+    opacity: 0.05;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 30%, transparent);
+    color: var(--foreground);
+  }
+
+  /* Focus ring, once, for everything. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Thin token-coloured scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--input) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--input);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   5. Glass recipes. Three levels of the same idea, so panels stay consistent:
+      .glass        content panels and cards
+      .glass-strong overlays that need to obscure what is behind them
+      .glass-inset  wells inside a panel (message bubbles, list rows)
+   ------------------------------------------------------------------------ */
+@layer components {
+  .glass {
+    background-color: var(--glass-bg);
+    /* The glossy read: a soft highlight fading down from the top edge, like
+       a light source above the panel — layered over the flat tint via
+       background-image so --glass-bg itself stays a single colour (other
+       consumers of that token, if any, are unaffected). */
+    background-image: linear-gradient(180deg, var(--glass-gloss) 0%, transparent 45%);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  /* Interactive panels lift slightly. Small enough to feel physical rather
+     than animated. */
+  .glass-interactive {
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      transform 150ms ease;
+  }
+
+  .glass-interactive:hover {
+    background-color: var(--glass-bg-hover);
+    border-color: color-mix(in oklab, var(--brand) 32%, transparent);
+    box-shadow: var(--glass-shadow-lg);
+    transform: translateY(-1px);
+  }
+
+  .glass-strong {
+    background-color: var(--glass-bg-strong);
+    background-image: linear-gradient(180deg, var(--glass-gloss) 0%, transparent 40%);
+    backdrop-filter: blur(calc(var(--glass-blur) * 1.5)) saturate(150%);
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.5)) saturate(150%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow-lg);
+  }
+
+  /* Same gloss, for the shadcn Button's `default` (solid brand-fill) variant
+     — layered over bg-primary so ordinary buttons get the same glossy read
+     as the glass panels, not just the landing page's hero CTA. */
+  .btn-glossy {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.22) 0%, transparent 45%);
+  }
+
+  .glass-inset {
+    background-color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  /* A divider that fades at both ends, so a long list of rows does not read as
+     a stack of hard rules. */
+  .rule-fade {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--border) 12%,
+      var(--border) 88%,
+      transparent
+    );
+  }
+
+  /* Status and priority pills.
+     One recipe, tinted by --pill-tint. The fill is a light wash rather than a
+     solid block, and the colour is carried by a soft shadow behind the pill,
+     so a row of these reads as glass rather than as a row of stickers.
+     Every pill also carries its label as text — never colour alone. */
+  .pill {
+    --pill-tint: var(--muted-foreground);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 9999px;
+    padding: 0.1875rem 0.6875rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    color: var(--pill-tint);
+    background-color: color-mix(in oklab, var(--pill-tint) 13%, transparent);
+    border: 1px solid color-mix(in oklab, var(--pill-tint) 26%, transparent);
+    /* Tighter and softer than before: the old glow bled into neighbouring
+       cells in a dense table. */
+    box-shadow: 0 1px 8px -2px color-mix(in oklab, var(--pill-tint) 45%, transparent);
+  }
+
+  .pill-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background-color: var(--pill-tint);
+    box-shadow: 0 0 6px var(--pill-tint);
+  }
+
+  .pill-brand { --pill-tint: var(--brand-text); }
+  .pill-success { --pill-tint: var(--success); }
+  .pill-warning { --pill-tint: var(--warning); }
+  .pill-danger { --pill-tint: var(--destructive); }
+  .pill-info { --pill-tint: var(--info); }
+  .pill-muted { --pill-tint: var(--muted-foreground); }
+
+  /* Amber glass warning strip. */
+  .glass-warning {
+    background-color: var(--warning-surface);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    border: 1px solid var(--warning-border);
+    box-shadow: 0 2px 14px -4px color-mix(in oklab, var(--warning) 35%, transparent);
+  }
+
+  /* Pointer-driven 3D tilt, paired with the useTilt hook (hooks/useTilt.ts).
+     The hook writes --tilt-x/--tilt-y/--tilt-glow-* as the pointer moves;
+     this class turns those into an actual rotation in 3D space plus a
+     specular highlight that tracks the cursor, so a card reads as a
+     physical glossy surface rather than a flat image tilting. */
+  .tilt-3d {
+    --tilt-x: 0deg;
+    --tilt-y: 0deg;
+    --tilt-glow-x: 50%;
+    --tilt-glow-y: 50%;
+    /* Plain default so cards that never set it (everything but .enter-btn)
+       render identically to before this was added. */
+    --tilt-scale: 1;
+    transform-style: preserve-3d;
+    transform:
+      perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y))
+      scale(var(--tilt-scale));
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  .tilt-3d::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      280px circle at var(--tilt-glow-x) var(--tilt-glow-y),
+      color-mix(in oklab, var(--brand) 20%, transparent),
+      transparent 68%
+    );
+    opacity: 0;
+    transition: opacity 220ms ease;
+    pointer-events: none;
+  }
+
+  .tilt-3d:hover::after {
+    opacity: 1;
+  }
+
+  /* Hairline highlight along the top edge — sells the "pane of glass" read
+     in dark mode, and is invisible enough not to hurt in light mode. */
+  .glass-sheen {
+    position: relative;
+  }
+
+  .glass-sheen::before {
+    content: '';
+    position: absolute;
+    inset-inline: 1px;
+    top: 0;
+    height: 1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      transparent 8%,
+      color-mix(in oklab, var(--brand) 55%, transparent) 50%,
+      transparent 92%
+    );
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* The landing page's "Enter Workspace" button — the one action on the
+     page, so it gets three effects layered together:
+       - a slow ambient glow that breathes even at rest (::box-shadow)
+       - a spinning conic-gradient rim behind it (::before), like an energy
+         field, that speeds up on hover
+       - a diagonal light sweep across the face (::after), fired once per
+         hover rather than looping, so it reads as a reaction to the pointer
+         rather than a distracting idle animation
+     Combined with .tilt-3d (applied alongside this class) for the pointer
+     rotation and hover scale. */
+  @keyframes enter-glow-breathe {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--brand) 45%, transparent),
+        0 8px 32px -8px var(--brand-glow),
+        0 0 48px -12px color-mix(in oklab, var(--brand-2) 55%, transparent);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--brand) 65%, transparent),
+        0 8px 44px -6px var(--brand-glow),
+        0 0 64px -10px color-mix(in oklab, var(--brand-2) 70%, transparent);
+    }
+  }
+
+  @keyframes enter-rim-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes enter-shimmer {
+    from {
+      background-position: 160% 0;
+    }
+    to {
+      background-position: -60% 0;
+    }
+  }
+
+  .enter-btn {
+    position: relative;
+    isolation: isolate;
+    /* Two layers: a static glossy top-highlight (matching .glass/.btn-glossy)
+       painted over the brand-to-primary gradient underneath. */
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.28) 0%, transparent 45%),
+      linear-gradient(135deg, var(--brand) 0%, var(--primary) 100%);
+    animation: enter-glow-breathe 3.2s ease-in-out infinite;
+    /* Overrides .tilt-3d's own `transition: transform ...` — restated here
+       alongside `filter` so both actually animate (the last class in
+       cascade order wins the whole `transition` shorthand, it does not
+       merge across classes). */
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      filter 220ms ease;
+    overflow: hidden;
+  }
+
+  .enter-btn::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    z-index: -1;
+    border-radius: inherit;
+    /* Third stop is --chart-3, not a hardcoded hex — every accent theme
+       defines it as a third distinct hue in the same family, so the rim
+       stays a coherent 3-colour cycle under all four themes. */
+    background: conic-gradient(
+      from 0deg,
+      var(--brand),
+      var(--brand-2),
+      var(--chart-3),
+      var(--brand)
+    );
+    opacity: 0.9;
+    animation: enter-rim-spin 5s linear infinite;
+  }
+
+  .enter-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      115deg,
+      transparent 30%,
+      rgb(255 255 255 / 0.4) 48%,
+      transparent 62%
+    );
+    background-size: 220% 100%;
+    background-position: 160% 0;
+  }
+
+  .enter-btn:hover {
+    --tilt-scale: 1.045;
+    filter: brightness(1.12);
+    animation-duration: 1.4s;
+  }
+
+  .enter-btn:hover::before {
+    animation-duration: 1.6s;
+  }
+
+  .enter-btn:hover::after {
+    animation: enter-shimmer 900ms ease forwards;
+  }
+
+  .enter-btn:active {
+    --tilt-scale: 0.98;
+    filter: brightness(0.96);
+  }
+
+  /* Gentle vertical drift for small landing-page elements (eyebrow pill,
+     feature chips) — cheap way to make an otherwise-static row of pills feel
+     alive without adding more content. Stagger with the --float-delay var. */
+  @keyframes float-slow {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  .float-slow {
+    animation: float-slow 5s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+  }
+
+  /* A slow breathing glow, token-driven so it re-colours with the accent for
+     free. Used for the sidebar's active-nav indicator and anywhere else a
+     small element should read as "alive" rather than static — e.g. an
+     urgent badge or a live-data dot. Kept subtle (opacity 1→0.8, not a big
+     swing) so a row of these never feels like a notification storm. */
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 10px -1px var(--brand);
+    }
+    50% {
+      opacity: 0.8;
+      box-shadow: 0 0 18px 1px var(--brand);
+    }
+  }
+
+  .glow-pulse {
+    animation: glow-pulse 2.4s ease-in-out infinite;
+  }
+
+  /* Continuous rotation, reusing .enter-btn's rim keyframe (it is already
+     just "spin to 360deg", nothing landing-specific about it) — used for the
+     small orbit dots on the compact theme trigger, so the "more themes live
+     here" cue keeps moving even when nobody's pointer is near it. */
+  .orbit-spin {
+    animation: enter-rim-spin 7s linear infinite;
+  }
+
+  /* A soft, blurred colour wash for decorative "ambient light" behind a
+     panel's real content — the same cheap trick as the WebGL scenes'
+     additive-blend glow, but pure CSS for a small, always-mounted surface
+     like the sidebar where a Canvas would be overkill. Give the element a
+     size and position it yourself; this just supplies the blurred radial
+     fill. Always pair with -z-10 (or place before the content in a
+     stacking-context parent) so it never sits over readable text. */
+  .ambient-glow {
+    pointer-events: none;
+    border-radius: 9999px;
+    filter: blur(40px);
+  }
+}
+
+/* React Flow ships a light-theme stylesheet (imported in WorkflowBuilder.tsx
+ because its handles and edge paths genuinely need it). Its chrome —
+ controls, minimap, edges, selection box — is hardcoded to white/grey and
+ reads as a foreign element pasted onto the glass canvas. These overrides
+ re-point that chrome at the theme's own tokens, so the builder looks like
+ the rest of the app in every accent and in both light and dark. */
+.react-flow__controls {
+  box-shadow: var(--glass-shadow);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--glass-border);
+  fill: var(--muted-foreground);
+  color: var(--muted-foreground);
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--accent);
+  fill: var(--foreground);
+}
+
+.react-flow__minimap {
+  border: 1px solid var(--glass-border);
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.react-flow__minimap-mask {
+  fill: var(--background);
+  fill-opacity: 0.55;
+}
+
+.react-flow__minimap-node {
+  fill: var(--brand);
+  stroke: none;
+}
+
+.react-flow__edge-path {
+  stroke: var(--brand);
+  stroke-width: 1.75;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--brand-2);
+  stroke-width: 2.5;
+}
+
+.react-flow__edge-text {
+  fill: var(--muted-foreground);
+  font-size: 9px;
+}
+
+.react-flow__edge-textbg {
+  fill: var(--background);
+}
+
+.react-flow__background pattern circle {
+  fill: var(--border);
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+/* The default node wrapper paints its own white box behind our custom
+   node component's glass card — zeroed out so only ours shows. */
+.react-flow__node-agentraNode {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+  width: auto;
+}
