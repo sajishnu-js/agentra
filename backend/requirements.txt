@@ -20,7 +20,7 @@ redis==8.1.0
 # The queue itself — app/jobs/connection.py, app/telegram_bot.py and the new
 # app/webhooks/router.py all enqueue onto it. Was missing from this file
 # despite being a real, direct dependency of code already in the repo.
-rq==2.11.0
+rq==3.0.0
 
 # --- Knowledge base ingestion ---
 # Document parsing. The docx and pdf extras keep this to what we actually
