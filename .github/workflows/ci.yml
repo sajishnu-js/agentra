@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A second push to the same branch makes the first run's result irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend — lint, typecheck, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # `npm run build` is `tsc -b && vite build`, so this is the typecheck
+      # and the production bundle in one step — and it is the exact command
+      # Vercel runs, so a green build here means the deploy will not fail.
+      - name: Typecheck and build
+        run: npm run build
+
+  backend:
+    name: Backend — syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Deliberately not a `pip install -r requirements.txt` + import check.
+      # sentence-transformers pulls torch, which is several hundred MB and
+      # minutes of CI per run, to tell us something a syntax check already
+      # covers. Byte-compiling every module catches the error class that
+      # actually reaches this repo — a typo merged into a file no local run
+      # happened to import — in a couple of seconds and with nothing to flake.
+      - name: Byte-compile all backend modules
+        run: python -m compileall -q backend/app

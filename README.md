@@ -10,7 +10,7 @@ no microservices, no service mesh.
 
 ## Live demo
 
-**[View the deployed UI →](https://agentra.vercel.app)** *(link updated once deployed)*
+**[View the deployed UI →](https://agentra-six.vercel.app)**
 
 The deployed site is **frontend-only**. There is no FastAPI process, no Postgres
 and no Redis behind it — the backend needs a persistent worker, a pgvector
