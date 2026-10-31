@@ -49,7 +49,7 @@ python-telegram-bot==22.8
 httpx==0.28.1
 # Outbound email send in app/channels/email.py — async so a slow mail server
 # never blocks the RQ worker's event loop the way smtplib would.
-aiosmtplib==4.0.2
+aiosmtplib==5.1.3
 
 # --- LLM ---
 # app/llm/gemini.py imports this lazily (from google import genai) so that
