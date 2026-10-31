@@ -3,7 +3,7 @@ fastapi==0.141.1
 uvicorn[standard]==0.52.4
 # Required for FastAPI's UploadFile/File(...) form parsing — document and
 # attachment uploads use it; nothing else pulls it in transitively.
-python-multipart==0.0.20
+python-multipart==0.0.31
 
 # --- Config ---
 pydantic==2.13.4
