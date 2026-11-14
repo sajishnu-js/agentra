@@ -1,19 +1,19 @@
 # --- Web ---
-fastapi==0.141.1
-uvicorn[standard]==0.52.4
+fastapi==0.162.4
+uvicorn[standard]==0.54.0
 # Required for FastAPI's UploadFile/File(...) form parsing — document and
 # attachment uploads use it; nothing else pulls it in transitively.
-python-multipart==0.0.20
+python-multipart==0.0.33
 
 # --- Config ---
-pydantic==2.13.4
-pydantic-settings==2.15.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
 
 # --- Database ---
-sqlalchemy[asyncio]==2.0.52
-asyncpg==0.31.0
-alembic==1.19.1
-pgvector==0.5.0
+sqlalchemy[asyncio]==2.1.8
+asyncpg==0.32.0
+alembic==1.20.1
+pgvector==0.5.1
 
 # --- Cache / queue ---
 redis==8.1.0
@@ -37,7 +37,7 @@ en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_
 
 # Local embeddings. Pulls torch, which is the bulk of the install size.
 # No external API is involved in embedding.
-sentence-transformers==6.0.0
+sentence-transformers==6.3.0
 
 # --- Channels ---
 # The async rewrite (v20+) is required — app/channels/telegram.py uses
